@@ -28,7 +28,8 @@ Step 1: Reproduce the meta-analysis of pitch sd from previous studies of voice i
 ```{r, include=FALSE}}
 library(brms)
 library(brmstools)
-library(plyr)
+library(dplyr)
+library(rethinking)
 
 ```
 
@@ -69,8 +70,9 @@ dp2 = aggregate(dp[c(2,6,7)], list(dp$ID_unique), mean)
 
 dp2 = rename(dp2, replace = c("Group.1" = "ID_unique"))
 
-# why you not working
-dp2 = scale(dp2, dp2$PitchMean, dp2$PitchSD)
+# scaling
+dp2$PitchMean = scale(dp2$PitchMean)
+dp2$PitchSD = scale(dp2$PitchSD)
 
 ```
 
@@ -83,13 +85,49 @@ Step 3: Build a regression model predicting Pitch SD from Diagnosis.
 
 ```{r}
 
-m3 = brm(PitchSD ~ Diagnosis,
-        data = dp2,
-        cores = 2,
-        chain = 2,
-        iter = 2000
-        )
+# model
+# when the variable is continious we can assume that it is normally distributed as most phenomena are (least error)
+# central limit theorem, when the variable is continious, the distribution of the mean of the distribution tends to be Gaussian
 
+'''
+PitchSD ~ Normal(mu,sigma)
+mu = a+ b*diagnosis
+a ~ Normal(0,1) # (0,2) very broad
+b ~ Normal(0,0.1) # we will get back to that
+sigma ~ Cauchy(0,2) # Uniform, terrible for sampling
+
+'''
+# map 2 stan
+m3 <- map2stan(
+  alist(
+    PitchSD ~ dnorm(mu,sigma) ,
+    mu <- a + b*diagnosis ,
+    a ~ dnorm(0,1),
+    b ~ dnorm(0,0.1),
+    sigma ~ dcauchy(0,2)
+    ), 
+  data= dp2)
+
+summary(m3)
+
+
+m3 = brm(PitchSD ~ diagnosis,
+         prior = c(prior(normal(0,1), class = Intercept),
+         prior(normal(0,0.1), class = b, coef = diagnosis),
+         prior(cauchy(0,2), class = sigma)),
+         data = dp2,
+         cores = 2,
+         chain = 2,
+         iter = 2000
+         )
+
+summary(m3)
+
+# plotting
+plot(m3)
+
+# evalutating model quality
+waic(m3)
 
 ```
 
@@ -99,12 +137,40 @@ Step 4: Now re-run the model with the meta-analytic prior
 
 ```{r}
 
-m3 = brm(PitchSD ~ Diagnosis,
-        data = dp2,
-        cores = 2,
-        chain = 2,
-        iter = 2000
-        )
+# map2stan
+# if you choose se as sigma of prior distribution, you care about the underlying true effect
+# if you choose SD as sigma of prior distribution, you care about the thruth of your study.
+# depends on what you think about the existing litterature and what question you are asking.
+
+# the below model gives the following error: Error in constr_list[[sigma_name]] : no such index at level 1
+m4 <- map2stan(
+  alist(
+    PitchSD ~ dnorm(mu,sigma) ,
+    mu <- a + b*diagnosis ,
+    a ~ dnorm(0,1),
+    b ~ dnorm(0.6,-0.3),
+    sigma ~ dcauchy(0,2)
+    ), 
+  data= dp2)
+
+
+# BRMS
+# check which priors can be set
+get_prior(PitchSD ~ diagnosis, data = dp2)
+
+
+m4 = brm(PitchSD ~ diagnosis,
+         prior = c(prior(normal(0,1), class = Intercept),
+         prior(normal(0.6,0.3), class = b, coef = diagnosis),
+         prior(cauchy(0,2), class = sigma)),
+         data = dp2,
+         cores = 2,
+         chain = 2,
+         iter = 2000
+         )
+
+summary(m4)
+plot(m4)
 
 ```
 
@@ -114,6 +180,26 @@ Step 5: Compare the models
 - Compare posteriors between the two models
 - Compare their relative distance from truth (WAIC)
 - Discuss how they compare and whether any of them is best.
+```{r}
+
+# plotting priors
+dens(rnorm(10000, mean = 0.6, sd = 0.3))
+dens(rnorm(10000, mean = 0.6, sd = 0.8))
+
+plot(m4)
+
+x = rnorm(200, mean = 0.6, sd = -0.3)
+
+plot(x)
+
+# plotting posteriors
+
+
+
+# compare models
+
+```
+
 
 Step 6: Prepare a nice write up of the analysis and answer the questions at the top.
 
