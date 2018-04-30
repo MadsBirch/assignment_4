@@ -30,6 +30,8 @@ library(brms)
 library(brmstools)
 library(dplyr)
 library(rethinking)
+library(bayesplot)
+library(readxl)
 
 ```
 
@@ -39,19 +41,29 @@ library(rethinking)
 dm = read_excel("Assignment4MetaData.xlsx")
 dp = read_excel("Assignment4PitchDatav2.xlsx")
 
-# cohens d is a standardized measure of effect size. It assumes a Gaussian distribution
 
+# cohens d is a standardized measure of effect size. It assumes a Gaussian distribution
+# model estimates same effect size with 2000 and 10000 iterations.
+
+# KØR model igen
 m = brm(MeanES|se(SdES) ~ 1  + (1|StudyID),
         data = dm,
         cores = 2,
         chain = 2,
-        iter = 2000
+        iter = 10000,
+        warmup = 2000
         )
 
 summary(m)
 
+
+# plotting
 plot(m)
 forest(m)
+
+s_m = sim(m, data = dm)
+
+ppc_dens_overlay(dm$MeanES, s_m)
 
 
 ```
@@ -111,20 +123,28 @@ m3 <- map2stan(
 summary(m3)
 
 
+# BRMS
+# check which priors can be set
+get_prior(PitchSD ~ diagnosis, data = dp2)
 m3 = brm(PitchSD ~ diagnosis,
          prior = c(prior(normal(0,1), class = Intercept),
          prior(normal(0,0.1), class = b, coef = diagnosis),
          prior(cauchy(0,2), class = sigma)),
          data = dp2,
-         cores = 2,
-         chain = 2,
-         iter = 2000
+         cores = 4,
+         chain = 4,
+         iter = 20000,
+         warmup = 4000
          )
 
 summary(m3)
 
 # plotting
 plot(m3)
+
+s_m3 = sim(m3, data = dp2)
+
+ppc_dens_overlay(dp2$PitchSD, s_m3)
 
 # evalutating model quality
 waic(m3)
@@ -164,9 +184,10 @@ m4 = brm(PitchSD ~ diagnosis,
          prior(normal(0.6,0.3), class = b, coef = diagnosis),
          prior(cauchy(0,2), class = sigma)),
          data = dp2,
-         cores = 2,
-         chain = 2,
-         iter = 2000
+         cores = 4,
+         chain = 4,
+         iter = 20000,
+         warmup = 4000
          )
 
 summary(m4)
@@ -183,20 +204,23 @@ Step 5: Compare the models
 ```{r}
 
 # plotting priors
-dens(rnorm(10000, mean = 0.6, sd = 0.3))
-dens(rnorm(10000, mean = 0.6, sd = 0.8))
 
-plot(m4)
+x <- seq(from = -2, to = 2, by = 0.1)
+prior_c = dnorm(x,mean = 0.6, sd = 0.8)
+prior_m = dnorm(x,mean = 0.6, sd = 0.3)
 
-x = rnorm(200, mean = 0.6, sd = -0.3)
+plot(x, prior_c, type = "l", col = "red")
+lines(x, prior_m, type = "l", col = "green")
 
-plot(x)
 
 # plotting posteriors
-
-
+pp_check(m3)
+pp_check(m4)
 
 # compare models
+WAIC(m3,m4, compare = TRUE)
+# why does waic not work on brm models?
+
 
 ```
 
