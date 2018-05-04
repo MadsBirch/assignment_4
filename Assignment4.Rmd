@@ -29,7 +29,7 @@ Step 1: Reproduce the meta-analysis of pitch sd from previous studies of voice i
 library(brms)
 library(brmstools)
 library(dplyr)
-library(rethinking)
+#library(rethinking)
 library(bayesplot)
 library(readxl)
 
@@ -51,19 +51,16 @@ m = brm(MeanES|se(SdES) ~ 1  + (1|StudyID),
         cores = 2,
         chain = 2,
         iter = 10000,
-        warmup = 2000
+        warmup = 4000
         )
 
 summary(m)
 
+pairs(m)
 
 # plotting
 plot(m)
-forest(m)
-
-s_m = sim(m, data = dm)
-
-ppc_dens_overlay(dm$MeanES, s_m)
+forest(m, av_name = "Effect Size")
 
 
 ```
@@ -138,16 +135,7 @@ m3 = brm(PitchSD ~ diagnosis,
          )
 
 summary(m3)
-
-# plotting
 plot(m3)
-
-s_m3 = sim(m3, data = dp2)
-
-ppc_dens_overlay(dp2$PitchSD, s_m3)
-
-# evalutating model quality
-waic(m3)
 
 ```
 
@@ -186,8 +174,8 @@ m4 = brm(PitchSD ~ diagnosis,
          data = dp2,
          cores = 4,
          chain = 4,
-         iter = 20000,
-         warmup = 4000
+         iter = 50000,
+         warmup = 10000
          )
 
 summary(m4)
@@ -205,8 +193,8 @@ Step 5: Compare the models
 
 # plotting priors
 
-x <- seq(from = -2, to = 2, by = 0.1)
-prior_c = dnorm(x,mean = 0.6, sd = 0.8)
+x <- seq(from = -1, to = 2, by = 0.01)
+prior_c = dnorm(x,mean = 0, sd = 0.1)
 prior_m = dnorm(x,mean = 0.6, sd = 0.3)
 
 plot(x, prior_c, type = "l", col = "red")
@@ -214,12 +202,27 @@ lines(x, prior_m, type = "l", col = "green")
 
 
 # plotting posteriors
+plot(m3)
+plot(m4)
+
+plot(marginal_effects(m3), ask = FALSE)
+plot(marginal_effects(m4), ask = FALSE)
+
+
 pp_check(m3)
 pp_check(m4)
 
+
+m3_post = extract.samples(m3, n = 1e5)
+
 # compare models
-WAIC(m3,m4, compare = TRUE)
-# why does waic not work on brm models?
+waic(m3, m4) #  waic does not work on brm models when rethinking package is loaded
+
+waic_m3 = waic(m3)
+waic_m4 = waic(m4)
+
+compare(waic_m3, waic_m4) 
+
 
 
 ```
