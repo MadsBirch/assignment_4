@@ -60,7 +60,8 @@ pairs(m)
 
 # plotting
 plot(m)
-forest(m, av_name = "Effect Size")
+forest(m,
+       av_name = "Effect Size" )
 
 
 ```
@@ -181,6 +182,20 @@ m4 = brm(PitchSD ~ diagnosis,
 summary(m4)
 plot(m4)
 
+# NULL model
+m5 = brm(PitchSD ~ 1,
+         prior = c(prior(normal(0,1), class = Intercept),
+         prior(cauchy(0,2), class = sigma)),
+         data = dp2,
+         cores = 4,
+         chain = 4,
+         iter = 50000,
+         warmup = 10000
+         )
+
+summary(m5)
+plot(m5)
+
 ```
 
 
@@ -209,19 +224,20 @@ plot(marginal_effects(m3), ask = FALSE)
 plot(marginal_effects(m4), ask = FALSE)
 
 
-pp_check(m3)
-pp_check(m4)
+pp_check(m3, nsamples = 50)
+pp_check(m4, nsamples = 50)
+pp_check(m5, nsamples = 50)
 
-
-m3_post = extract.samples(m3, n = 1e5)
 
 # compare models
-waic(m3, m4) #  waic does not work on brm models when rethinking package is loaded
+waic(m3, m4, m5) #  waic does not work on brm models when rethinking package is loaded
 
 waic_m3 = waic(m3)
 waic_m4 = waic(m4)
+waic_m5 = waic(m5)
 
-compare(waic_m3, waic_m4) 
+# load rethinking package
+compare(waic_m3, waic_m4, waic_m5) 
 
 
 
