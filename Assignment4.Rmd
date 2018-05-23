@@ -157,7 +157,7 @@ m4 <- map2stan(
     PitchSD ~ dnorm(mu,sigma) ,
     mu <- a + b*diagnosis ,
     a ~ dnorm(0,1),
-    b ~ dnorm(0.6,-0.3),
+    b ~ dnorm(0.6,0.3),
     sigma ~ dcauchy(0,2)
     ), 
   data= dp2)
