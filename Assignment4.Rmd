@@ -29,7 +29,7 @@ Step 1: Reproduce the meta-analysis of pitch sd from previous studies of voice i
 library(brms)
 library(brmstools)
 library(dplyr)
-#library(rethinking)
+library(rethinking)
 library(bayesplot)
 library(readxl)
 
@@ -170,13 +170,13 @@ get_prior(PitchSD ~ diagnosis, data = dp2)
 
 m4 = brm(PitchSD ~ diagnosis,
          prior = c(prior(normal(0,1), class = Intercept),
-         prior(normal(0.6,0.3), class = b, coef = diagnosis),
+         prior(normal(-0.6,0.3), class = b, coef = diagnosis),
          prior(cauchy(0,2), class = sigma)),
          data = dp2,
          cores = 4,
          chain = 4,
-         iter = 50000,
-         warmup = 10000
+         iter = 20000,
+         warmup = 5000
          )
 
 summary(m4)
@@ -227,18 +227,6 @@ plot(marginal_effects(m4), ask = FALSE)
 pp_check(m3, nsamples = 50)
 pp_check(m4, nsamples = 50)
 pp_check(m5, nsamples = 50)
-
-
-# compare models
-waic(m3, m4, m5) #  waic does not work on brm models when rethinking package is loaded
-
-waic_m3 = waic(m3)
-waic_m4 = waic(m4)
-waic_m5 = waic(m5)
-
-# load rethinking package
-compare(waic_m3, waic_m4, waic_m5) 
-
 
 
 ```
